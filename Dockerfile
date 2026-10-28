@@ -18,5 +18,9 @@ EXPOSE 8080
 ENV FLASK_APP=service:app
 ENV PORT=8080
 
+# Switch to a non-root user for security
+RUN useradd --uid 1000 appuser && chown -R appuser /app
+USER appuser
+
 # Run the application with gunicorn
 CMD ["gunicorn", "--bind=0.0.0.0:8080", "--log-level=info", "service:app"]
