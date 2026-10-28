@@ -1,0 +1,26 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: deploy-image
+  namespace: default
+spec:
+  params:
+    - name: image_name
+      description: The fully qualified image name to deploy
+    - name: manifest_dir
+      description: The directory containing the Kubernetes manifests
+      default: k8s
+  workspaces:
+    - name: source
+  steps:
+    - name: deploy
+      image: bitnami/kubectl:latest
+      workingDir: $(workspaces.source.path)
+      command: ["/bin/bash", "-c"]
+      args:
+        - |
+          kubectl set image deployment/accounts \
+            accounts=$(params.image_name) \
+            --record
+          kubectl rollout status deployment/accounts
+          echo "Deployment complete!"

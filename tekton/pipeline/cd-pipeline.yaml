@@ -1,0 +1,99 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: cd-pipeline
+  namespace: default
+spec:
+  params:
+    - name: repo-url
+      type: string
+      description: The URL of the git repo to clone
+    - name: branch
+      type: string
+      description: The branch to build
+      default: main
+    - name: build-image
+      type: string
+      description: The image to build and push
+  workspaces:
+    - name: pipeline-workspace
+
+  tasks:
+    # ----------------------------------------------------------
+    # Task 1: Clone the repository
+    # ----------------------------------------------------------
+    - name: clone
+      taskRef:
+        name: git-clone
+      workspaces:
+        - name: output
+          workspace: pipeline-workspace
+      params:
+        - name: url
+          value: $(params.repo-url)
+        - name: revision
+          value: $(params.branch)
+
+    # ----------------------------------------------------------
+    # Task 2: Lint the code
+    # ----------------------------------------------------------
+    - name: lint
+      taskRef:
+        name: flake8
+      runAfter:
+        - clone
+      workspaces:
+        - name: source
+          workspace: pipeline-workspace
+      params:
+        - name: image
+          value: "python:3.9-slim"
+        - name: args
+          value: []
+
+    # ----------------------------------------------------------
+    # Task 3: Run unit tests
+    # ----------------------------------------------------------
+    - name: tests
+      taskRef:
+        name: nose
+      runAfter:
+        - lint
+      workspaces:
+        - name: source
+          workspace: pipeline-workspace
+      params:
+        - name: database_uri
+          value: "sqlite:///:memory:"
+        - name: args
+          value: "-v --with-spec --spec-color"
+
+    # ----------------------------------------------------------
+    # Task 4: Build and push Docker image
+    # ----------------------------------------------------------
+    - name: build
+      taskRef:
+        name: buildah
+      runAfter:
+        - tests
+      workspaces:
+        - name: source
+          workspace: pipeline-workspace
+      params:
+        - name: IMAGE
+          value: $(params.build-image)
+
+    # ----------------------------------------------------------
+    # Task 5: Deploy to Kubernetes
+    # ----------------------------------------------------------
+    - name: deploy
+      taskRef:
+        name: deploy-image
+      runAfter:
+        - build
+      workspaces:
+        - name: source
+          workspace: pipeline-workspace
+      params:
+        - name: image_name
+          value: $(params.build-image)

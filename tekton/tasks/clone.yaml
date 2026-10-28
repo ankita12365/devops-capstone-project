@@ -1,0 +1,25 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: git-clone
+  namespace: default
+spec:
+  params:
+    - name: url
+      type: string
+      description: Repository URL to clone
+    - name: revision
+      type: string
+      description: Revision to checkout
+      default: main
+  workspaces:
+    - name: output
+      description: The git repo will be cloned into this workspace
+  steps:
+    - name: clone
+      image: alpine/git
+      script: |
+        #!/bin/sh
+        git clone $(params.url) $(workspaces.output.path)
+        cd $(workspaces.output.path)
+        git checkout $(params.revision)

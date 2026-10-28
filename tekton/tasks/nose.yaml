@@ -1,0 +1,32 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: nose
+  namespace: default
+spec:
+  params:
+    - name: image
+      description: The container image to run the task
+      default: python:3.9-slim
+    - name: database_uri
+      description: Database URI for tests
+      default: "sqlite:///:memory:"
+    - name: args
+      description: Arguments for nosetests
+      default: "-v --with-spec --spec-color"
+  workspaces:
+    - name: source
+      description: Source code workspace
+  steps:
+    - name: nosetests
+      image: $(params.image)
+      workingDir: $(workspaces.source.path)
+      env:
+        - name: DATABASE_URI
+          value: $(params.database_uri)
+      command: ["/bin/bash", "-c"]
+      args:
+        - |
+          pip install -r requirements.txt --quiet
+          pip install nose coverage --quiet
+          nosetests $(params.args)

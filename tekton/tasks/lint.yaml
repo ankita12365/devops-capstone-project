@@ -1,0 +1,27 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: flake8
+  namespace: default
+spec:
+  params:
+    - name: image
+      description: The container image to run the task
+      default: python:3.9-slim
+    - name: args
+      description: Flake8 arguments
+      type: array
+      default: []
+  workspaces:
+    - name: source
+      description: Source code workspace
+  steps:
+    - name: flake8
+      image: $(params.image)
+      workingDir: $(workspaces.source.path)
+      command: ["/bin/bash", "-c"]
+      args:
+        - |
+          pip install flake8 --quiet
+          flake8 service/ --max-line-length=120 --exclude=__pycache__
+          echo "Flake8 linting complete!"
